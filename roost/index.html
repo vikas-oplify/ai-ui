@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: chat column + right panel (Listings / Map / Checklist / Agreement) that opens after the first search. Dark-first slate with a marigold "To-Let" accent. */
+:root{
+  --bg:#12161a; --surface:#181d22; --raised:#21272e; --hover:#2a3139; --line:#333b45; --line-soft:#252c33;
+  --fg:#e8ecef; --muted:#9aa4ae; --faint:#69737e;
+  --accent:#f0b23f; --accent-ink:#1b1406; --good:#7cc79a; --warn:#f0925f; --info:#86b6ea;
+  --water:#1d3448; --park:#1b2c24; --road:#2e3640; --block:#1c2227;
+  --art-l1:30%; --art-l2:16%; --art-ink:80%; --art-sat:38%;
+  --shadow:0 18px 50px -20px rgba(0,0,0,.75);
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --pw:56%;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f3f4f1; --surface:#ffffff; --raised:#eaece7; --hover:#e1e4dd; --line:#d5d9d0; --line-soft:#e6e9e3;
+    --fg:#151a1e; --muted:#59616a; --faint:#8b939b;
+    --accent:#a96a00; --accent-ink:#ffffff; --good:#23784a; --warn:#b4511f; --info:#2b67a6;
+    --water:#cfe1ee; --park:#dbe9dc; --road:#ffffff; --block:#e7e9e3;
+    --art-l1:92%; --art-l2:82%; --art-ink:32%; --art-sat:38%;
+    --shadow:0 18px 50px -24px rgba(20,30,40,.35);
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f3f4f1; --surface:#ffffff; --raised:#eaece7; --hover:#e1e4dd; --line:#d5d9d0; --line-soft:#e6e9e3;
+  --fg:#151a1e; --muted:#59616a; --faint:#8b939b;
+  --accent:#a96a00; --accent-ink:#ffffff; --good:#23784a; --warn:#b4511f; --info:#2b67a6;
+  --water:#cfe1ee; --park:#dbe9dc; --road:#ffffff; --block:#e7e9e3;
+  --art-l1:92%; --art-l2:82%; --art-ink:32%; --art-sat:38%;
+  --shadow:0 18px 50px -24px rgba(20,30,40,.35);
+  color-scheme:light;
+}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5;overflow:hidden}
+*{box-sizing:border-box}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+svg{display:block}
+.ico{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.iconbtn{width:32px;height:32px;display:grid;place-items:center;border-radius:8px;color:var(--muted)}
+.iconbtn:hover{background:var(--hover);color:var(--fg)}
+.app{display:flex;height:100%;position:relative}
+
+/* chat */
+.chat{flex:1;min-width:0;display:flex;flex-direction:column;height:100%}
+.topbar{display:flex;align-items:center;gap:8px;padding:10px 12px;min-height:52px}
+.wordmark{font-family:var(--f-display);font-weight:600;font-size:17px;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
+.wordmark .logo{width:22px;height:22px;color:var(--accent)}
+.thread-title{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40ch}
+.topbar .spacer{flex:1}
+.toplink{display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;color:var(--muted)}
+.toplink:hover{background:var(--hover);color:var(--fg)}
+.count{font-family:var(--f-mono);font-size:11px;min-width:18px;height:18px;border-radius:9px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;padding:0 5px}
+.count[data-n="0"]{background:var(--raised);color:var(--faint)}
+
+.stage{flex:1;min-height:0;display:flex;flex-direction:column}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:0 16px 10vh}
+.started .hero{display:none}
+.tolet{font-family:var(--f-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);border:1.5px solid var(--accent);padding:3px 9px;border-radius:4px;transform:rotate(-2deg)}
+.hero h1{font-family:var(--f-display);font-weight:600;font-size:clamp(30px,4.6vw,46px);line-height:1.05;letter-spacing:-.025em;margin:0;text-align:center;text-wrap:balance}
+.hero h1 span{color:var(--accent)}
+.hero .slot{width:min(700px,100%)}
+.suggest{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:min(700px,100%)}
+.suggest button{text-align:left;border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--muted);font-size:13px;display:flex;gap:10px;align-items:flex-start;transition:background .15s,color .15s,border-color .15s}
+.suggest button:hover{background:var(--raised);color:var(--fg);border-color:var(--faint)}
+.suggest button b{display:block;color:var(--fg);font-weight:500;font-size:13.5px}
+.suggest .ico{margin-top:2px;color:var(--accent)}
+
+.thread{flex:1;overflow-y:auto;display:none;padding:12px 16px 24px}
+.started .thread{display:block}
+.thread-inner{width:min(720px,100%);margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.msg-user{align-self:flex-end;max-width:min(80%,520px);background:var(--raised);border-radius:14px 14px 4px 14px;padding:9px 14px;white-space:pre-wrap;overflow-wrap:anywhere;animation:rise .3s ease both}
+.msg-ai{display:flex;flex-direction:column;gap:12px;animation:rise .35s ease both;min-width:0}
+.trace{display:flex;align-items:center;gap:6px;color:var(--faint);font-size:13px}
+.trace .ico{width:14px;height:14px}
+.ai-text{font-size:15.5px;line-height:1.6;max-width:65ch}
+.ai-text p{margin:0 0 .6em}.ai-text p:last-child{margin:0}
+.ai-text b{font-weight:600}
+.thinking{display:flex;align-items:center;gap:10px;color:var(--muted)}
+.thinking .logo{width:20px;height:20px;color:var(--accent);animation:bob 1s ease-in-out infinite alternate}
+.next{display:flex;flex-wrap:wrap;gap:6px}
+.next button{border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--muted)}
+.next button:hover{color:var(--fg);border-color:var(--faint);background:var(--raised)}
+.next button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:500}
+
+.placecard{display:flex;gap:12px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:12px 14px;max-width:460px}
+.placecard .pin{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);flex:none}
+.placecard div{min-width:0}
+.placecard strong{display:block;font-weight:600}
+.placecard span{color:var(--muted);font-size:13px}
+.checks{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.checks i{font-style:normal;font-size:11.5px;padding:2px 8px;border-radius:6px;background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good)}
+.checks i.q{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
+.options{display:flex;flex-direction:column;gap:6px;max-width:460px}
+.options button{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.options button:hover{background:var(--raised);border-color:var(--faint)}
+.options button span{color:var(--muted);font-size:12.5px;display:block}
+.options .ico{color:var(--accent)}
+
+.result-card{display:flex;align-items:center;gap:14px;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:12px;max-width:460px;text-align:left}
+.result-card:hover{border-color:var(--faint)}
+.result-card .stack{display:flex;flex:none}
+.result-card .stack .art{width:40px;height:40px;border-radius:9px;border:2px solid var(--surface);margin-left:-12px}
+.result-card .stack .art:first-child{margin-left:0}
+.result-card .stack .art svg{width:24px;height:24px}
+.result-card .meta{flex:1;min-width:0}
+.result-card strong{display:block;font-weight:600}
+.result-card .meta span{color:var(--muted);font-size:12.5px}
+.pill-btn{display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:8px;background:var(--raised);font-size:13px;flex:none}
+.mini-table{border-collapse:collapse;font-size:13px;width:100%;max-width:460px}
+.mini-table td{padding:6px 0;border-bottom:1px solid var(--line-soft)}
+.mini-table td:last-child{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* composer */
+.dock{padding:0 16px 12px;display:none}
+.started .dock{display:block}
+.dock .slot{width:min(720px,100%);margin:0 auto}
+.composer{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 12px 10px 16px;display:flex;flex-direction:column;gap:8px}
+.composer:focus-within{border-color:var(--faint);box-shadow:var(--shadow)}
+.composer textarea{background:transparent;border:0;outline:0;resize:none;color:var(--fg);font:inherit;font-size:15px;line-height:1.5;min-height:48px;max-height:160px;padding:2px 0}
+.started .composer textarea{min-height:24px}
+.composer textarea::placeholder{color:var(--faint)}
+.composer .row{display:flex;align-items:center;gap:4px}
+.composer .row .spacer{flex:1}
+.send{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--raised);color:var(--faint)}
+.send.ready{background:var(--accent);color:var(--accent-ink)}
+.send .ico{width:16px;height:16px;stroke-width:2.2}
+.places{display:flex;align-items:center;gap:6px;padding:8px 4px 0;flex-wrap:wrap;font-size:12.5px;color:var(--faint)}
+.place-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:999px;background:var(--raised);color:var(--fg)}
+.place-chip .ico{width:13px;height:13px;color:var(--accent)}
+.place-chip em{font-style:normal;color:var(--muted)}
+.add-place{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:999px;border:1px dashed var(--line);color:var(--muted)}
+.add-place:hover{color:var(--fg);border-color:var(--faint)}
+.add-place .ico{width:13px;height:13px}
+.disclaim{text-align:center;color:var(--faint);font-size:12px;padding-top:6px}
+
+/* panel */
+.panel{width:0;flex:none;height:100%;overflow:hidden;position:relative;background:var(--surface);border-left:1px solid transparent;transition:width .55s cubic-bezier(.2,.8,.2,1),border-color .3s}
+.split .panel{width:var(--pw);border-left-color:var(--line)}
+.split.expanded .panel{width:100%}
+.split.expanded .chat{display:none}
+.dragging .panel{transition:none}
+.panel-inner{position:absolute;inset:0;display:flex;flex-direction:column;min-width:380px}
+.handle{position:absolute;left:-7px;top:0;bottom:0;width:14px;cursor:col-resize;z-index:5;display:none;place-items:center}
+.split .handle{display:grid}
+.handle::after{content:"";width:4px;height:40px;border-radius:2px;background:var(--line)}
+.handle:hover::after,.dragging .handle::after{background:var(--accent)}
+.p-head{display:flex;align-items:center;gap:4px;padding:8px 10px;border-bottom:1px solid var(--line-soft)}
+.tabs{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.tabs button{height:32px;padding:0 11px;border-radius:8px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:13.5px}
+.tabs button:hover{background:var(--hover);color:var(--fg)}
+.tabs button[aria-selected="true"]{background:var(--raised);color:var(--fg)}
+.tabs .ico{width:15px;height:15px}
+.tabs .prog{font-family:var(--f-mono);font-size:11px;color:var(--faint)}
+.p-body{flex:1;overflow-y:auto;min-height:0;position:relative}
+.p-sub{display:flex;align-items:center;gap:10px;padding:14px 18px 0;flex-wrap:wrap}
+.p-sub h2{font-family:var(--f-display);font-weight:600;font-size:20px;letter-spacing:-.015em;margin:0;flex:1;min-width:0}
+.p-sub h2 span{color:var(--faint);font-family:var(--f-mono);font-size:12px;font-weight:400;letter-spacing:0;margin-left:6px}
+.sort{appearance:none;background:var(--raised);border:0;font-size:13px;height:30px;border-radius:8px;padding:0 28px 0 10px;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 14px) 13px,calc(100% - 10px) 13px;background-size:4px 4px;background-repeat:no-repeat}
+.chips{display:flex;gap:6px;padding:12px 18px 2px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar,.tabs::-webkit-scrollbar{display:none}
+.chip{flex:none;height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:13px;white-space:nowrap}
+.chip:hover{color:var(--fg);border-color:var(--faint)}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.anchor-note{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;padding:8px 18px 0}
+.anchor-note .ico{width:14px;height:14px;color:var(--accent)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;padding:14px 18px 40px}
+.card{position:relative;display:flex;flex-direction:column;border-radius:14px;background:var(--bg);border:1px solid var(--line-soft);overflow:hidden;cursor:pointer;transition:transform .2s,border-color .2s;animation:rise .45s ease both;animation-delay:calc(var(--i,0)*50ms)}
+.card:hover{transform:translateY(-2px);border-color:var(--line)}
+.card .art{aspect-ratio:16/10;max-width:100%}
+.card .art svg{width:30%}
+.kind{position:absolute;top:10px;left:10px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--surface);letter-spacing:.02em}
+.heart{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--surface) 80%,transparent);color:var(--muted);backdrop-filter:blur(6px)}
+.heart[aria-pressed="true"]{color:var(--accent)}
+.heart[aria-pressed="true"] .ico{fill:currentColor}
+.heart .ico{width:16px;height:16px}
+.card-body{padding:12px;display:flex;flex-direction:column;gap:5px;flex:1}
+.card h3{margin:0;font-size:15px;font-weight:600;line-height:1.3}
+.loc{color:var(--muted);font-size:12.5px}
+.cfg{font-size:12.5px;color:var(--muted)}
+.commute{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--info)}
+.commute .ico{width:14px;height:14px}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.tag{font-size:11px;padding:2px 7px;border-radius:5px;background:var(--raised);color:var(--muted)}
+.tag.ok{background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good)}
+.tag.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
+.money{display:flex;align-items:baseline;gap:8px;margin-top:auto;padding-top:8px;border-top:1px solid var(--line-soft);flex-wrap:wrap}
+.rent{font-family:var(--f-mono);font-size:16px;font-weight:500;font-variant-numeric:tabular-nums}
+.rent small{font-size:11px;color:var(--faint);font-weight:400}
+.dep{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.each{font-size:12px;color:var(--good);margin-left:auto}
+.skel{border-radius:14px;background:var(--bg);border:1px solid var(--line-soft);overflow:hidden}
+.skel div{background:linear-gradient(90deg,var(--raised),var(--hover),var(--raised));background-size:200% 100%;animation:shimmer 1.2s linear infinite}
+.skel .a{aspect-ratio:16/10}.skel .b{height:12px;margin:14px 12px 8px;border-radius:4px;width:70%}.skel .c{height:10px;margin:0 12px 8px;border-radius:4px;width:45%}.skel .d{height:14px;margin:8px 12px 14px;border-radius:4px;width:35%}
+.art{display:grid;place-items:center;background:radial-gradient(120% 100% at 25% 15%,hsl(var(--h) var(--art-sat) var(--art-l1)),hsl(var(--h) calc(var(--art-sat) - 12%) var(--art-l2)))}
+.art svg{fill:none;stroke:hsl(var(--h) 50% var(--art-ink));stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
+/* map */
+.mapwrap{padding:14px 18px 30px;display:flex;flex-direction:column;gap:12px}
+.map{width:100%;max-width:100%;aspect-ratio:1;max-height:70vh;border-radius:14px;border:1px solid var(--line-soft);background:var(--block)}
+.map text{font-family:var(--f-body)}
+.map .pin{cursor:pointer}
+.map .pin:hover rect,.map .pin:focus rect{fill:var(--accent)}
+.map .pin:hover text,.map .pin:focus text{fill:var(--accent-ink)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12.5px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* detail */
+.detail{padding:14px 18px 40px;display:flex;flex-direction:column;gap:20px;animation:fade .3s ease both}
+.back{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;height:28px;padding:0 8px 0 4px;border-radius:7px}
+.back:hover{background:var(--hover);color:var(--fg)}
+.d-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px;align-items:start}
+.d-top .art{aspect-ratio:4/3;border-radius:14px;max-width:100%}
+.d-top .art svg{width:34%}
+.d-info{display:flex;flex-direction:column;gap:8px;min-width:0}
+.d-info h2{font-family:var(--f-display);font-weight:600;font-size:26px;letter-spacing:-.02em;line-height:1.1;margin:0;text-wrap:balance}
+.d-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.btn-accent{height:38px;padding:0 16px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:13.5px;white-space:nowrap}
+.btn-accent:disabled{opacity:.5;cursor:default}
+.ghost{height:38px;padding:0 14px;border-radius:9px;border:1px solid var(--line);font-size:13.5px;white-space:nowrap}
+.ghost:hover{background:var(--hover)}
+.label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:0 0 10px;font-weight:600}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.cost{display:flex;flex-direction:column;gap:7px}
+.cost-row{display:grid;grid-template-columns:110px 1fr auto;gap:10px;align-items:center;font-size:13px}
+.cost-row span:first-child{color:var(--muted)}
+.bar{height:6px;border-radius:3px;background:var(--raised);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.cost-row b{font-family:var(--f-mono);font-weight:500;font-variant-numeric:tabular-nums;text-align:right}
+.cost-total{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;margin-top:2px;font-weight:600}
+.cost-total b{font-family:var(--f-mono);font-weight:500}
+.bul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.bul li{display:flex;gap:10px;font-size:14px}
+.bul li::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--good);margin-top:.5em}
+.bul.w li::before{background:var(--warn)}
+.bul.n li::before{background:var(--faint)}
+.mates{display:flex;gap:8px;flex-wrap:wrap}
+.mate{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;background:var(--raised);font-size:13px}
+.mate i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:hsl(var(--h) 40% 45%);color:#fff;font-style:normal;font-size:11px;font-weight:600}
+.slots{display:flex;gap:8px;flex-wrap:wrap}
+.slot-btn{border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;text-align:left}
+.slot-btn span{display:block;color:var(--faint);font-size:11.5px}
+.slot-btn:hover{border-color:var(--faint)}
+.slot-btn[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+
+/* checklist */
+.cl{padding:16px 18px 40px;display:flex;flex-direction:column;gap:20px}
+.cl-head{display:flex;flex-direction:column;gap:8px}
+.meter{height:8px;border-radius:4px;background:var(--raised);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--good);transition:width .4s ease}
+.cl-group h3{margin:0 0 8px;font-size:13px;font-weight:600;color:var(--muted);display:flex;justify-content:space-between}
+.cl-group h3 span{font-family:var(--f-mono);font-weight:400;color:var(--faint)}
+.cl-item{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:10px;border:1px solid var(--line-soft);margin-bottom:6px;cursor:pointer;transition:background .15s}
+.cl-item:hover{background:var(--raised)}
+.cl-item input{appearance:none;width:18px;height:18px;border-radius:5px;border:1.5px solid var(--faint);flex:none;margin:1px 0 0;display:grid;place-items:center;cursor:pointer}
+.cl-item input:checked{background:var(--good);border-color:var(--good)}
+.cl-item input:checked::after{content:"";width:9px;height:5px;border-left:2px solid var(--bg);border-bottom:2px solid var(--bg);transform:rotate(-45deg) translate(1px,-1px)}
+.cl-item div{min-width:0}
+.cl-item strong{font-weight:500;display:block}
+.cl-item span{color:var(--muted);font-size:12.5px}
+.cl-item.done strong{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--faint)}
+.cl-item .auto{font-size:11px;color:var(--good);margin-left:6px;font-weight:500;text-decoration:none}
+
+/* agreement */
+.ag{padding:16px 18px 40px;display:flex;flex-direction:column;gap:22px}
+.ag-head h2{font-family:var(--f-display);font-weight:600;font-size:22px;margin:0 0 4px;letter-spacing:-.015em}
+.ag-head p{margin:0;color:var(--muted)}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.steps span{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--raised);color:var(--muted)}
+.steps span.on{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12px;color:var(--muted)}
+.field input,.field select{height:38px;border-radius:9px;border:1px solid var(--line);background:var(--bg);padding:0 10px;font-size:14px;width:100%;min-width:0}
+.field input:focus{border-color:var(--accent);outline:0}
+.fees{border:1px solid var(--line-soft);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.fees .r{display:flex;justify-content:space-between;gap:10px;font-size:13.5px}
+.fees .r span:first-child{color:var(--muted)}
+.fees .r b{font-family:var(--f-mono);font-weight:500;font-variant-numeric:tabular-nums}
+.fees .t{border-top:1px solid var(--line);padding-top:8px;font-weight:600}
+.fees small{color:var(--faint);font-size:12px}
+.doc{background:var(--bg);border:1px solid var(--line-soft);border-radius:12px;padding:22px 24px;font-family:Georgia,"Times New Roman",serif;font-size:14.5px;line-height:1.65;max-height:420px;overflow-y:auto}
+.doc h4{text-align:center;margin:0 0 4px;font-size:16px;letter-spacing:.04em;text-transform:uppercase}
+.doc .sub{text-align:center;color:var(--muted);font-size:12.5px;margin:0 0 16px}
+.doc ol{padding-left:20px;margin:0}
+.doc li{margin-bottom:8px}
+.doc mark{background:color-mix(in srgb,var(--accent) 20%,transparent);color:inherit;padding:0 3px;border-radius:3px}
+
+.pop{position:absolute;top:50px;right:12px;width:min(340px,calc(100vw - 32px));background:var(--raised);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:12px;z-index:20;display:flex;flex-direction:column;gap:10px;animation:rise .2s ease both}
+.pop h4{margin:0;font-weight:600}
+.pop .line{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:8px;padding:2px}
+.pop .line:hover{background:var(--hover)}
+.pop .line .art{width:38px;height:38px;border-radius:8px;flex:none}
+.pop .line .art svg{width:22px;height:22px}
+.pop .line div{flex:1;min-width:0;font-size:13px}
+.pop .line div span{display:block;color:var(--faint);font-family:var(--f-mono);font-size:12px}
+.pop .empty{color:var(--muted);font-size:13px;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:13px;pointer-events:none;transition:all .25s;z-index:50;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes bob{to{transform:translateY(-3px)}}
+@keyframes shimmer{to{background-position:-200% 0}}
+@media (max-width:860px){
+  .panel{position:fixed;inset:0;width:100% !important;transform:translateX(100%);transition:transform .45s cubic-bezier(.2,.8,.2,1);z-index:10;border:0;padding-top:env(safe-area-inset-top,0px)}
+  .split .panel{transform:none}
+  .split .handle,.expand-btn{display:none !important}
+  .panel-inner{min-width:0}
+  .d-top{grid-template-columns:1fr}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));padding-inline:14px}
+  .suggest{grid-template-columns:1fr}
+  .thread-title{display:none}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="logo" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="currentColor"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="9.5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+</svg>
+
+<div class="app" id="app">
+  <main class="chat">
+    <header class="topbar">
+      <button class="wordmark" id="newChat" title="New search"><svg class="logo"><use href="#logo"/></svg>Roost</button>
+      <div class="thread-title" id="threadTitle"></div>
+      <div class="spacer"></div>
+      <button class="toplink" id="shortBtn" aria-label="Shortlist"><svg class="ico" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Shortlist <span class="count" id="shortCount" data-n="0">0</span></button>
+    </header>
+    <div class="stage">
+      <section class="hero">
+        <span class="tolet">To-let · Bachelors welcome</span>
+        <h1>Find a place near <span>where you'll be</span>.</h1>
+        <div class="slot" id="heroSlot">
+          <div class="composer" id="composer">
+            <textarea id="input" rows="1" placeholder="Tell me your college or office, budget, and PG, shared flat or whole flat" aria-label="Message"></textarea>
+            <div class="row">
+              <button class="iconbtn" id="attach" title="Upload a listing screenshot" aria-label="Upload a listing screenshot"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+              <div class="spacer"></div>
+              <button class="send" id="send" aria-label="Send"><svg class="ico" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+            </div>
+          </div>
+          <div class="places" id="places"></div>
+        </div>
+        <div class="suggest" id="suggest"></div>
+      </section>
+      <section class="thread" id="thread"><div class="thread-inner" id="threadInner"></div></section>
+      <div class="dock"><div class="slot" id="dockSlot"></div><div class="disclaim">Sample listings in Powai, Koramangala and Hinjewadi. Owners, rents and fees are made up for this prototype.</div></div>
+    </div>
+  </main>
+
+  <aside class="panel" id="panel" aria-label="Places">
+    <div class="handle" id="handle" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0"></div>
+    <div class="panel-inner">
+      <div class="p-head">
+        <div class="tabs" role="tablist" id="tabs">
+          <button role="tab" data-tab="list" aria-selected="true"><svg class="ico" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>Places</button>
+          <button role="tab" data-tab="map" aria-selected="false"><svg class="ico" viewBox="0 0 24 24"><path d="M9 4 3 6.5v13.5L9 17.5l6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg>Map</button>
+          <button role="tab" data-tab="check" aria-selected="false"><svg class="ico" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17"/></svg>Checklist <span class="prog" id="clProg"></span></button>
+          <button role="tab" data-tab="deal" aria-selected="false" id="dealTab" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/></svg>Agreement</button>
+        </div>
+        <button class="iconbtn expand-btn" id="expand" title="Expand" aria-label="Expand panel"><svg class="ico" viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>
+        <button class="iconbtn" id="closePanel" title="Close" aria-label="Close panel"><svg class="ico" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="p-body" id="pBody"></div>
+    </div>
+  </aside>
+  <div class="pop" id="shortPop" hidden></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ---------------- data ---------------- */
+const AREAS = {
+  powai:{name:'Powai', city:'Mumbai', state:'MH', anchor:'iitb'},
+  kora:{name:'Koramangala', city:'Bengaluru', state:'KA', anchor:'kora'},
+  hinj:{name:'Hinjewadi', city:'Pune', state:'MH', anchor:'hinj1'}
+};
+const PLACES = [
+  {id:'iitb', re:/\biit\s?-?b(ombay)?\b|\biitb\b|indian institute of technology,? bombay/, name:'IIT Bombay', sub:'Powai, Mumbai 400076', area:'powai', pin:'400076', x:1.4, y:-1.1, kind:'College'},
+  {id:'hira', re:/hiranandani/, name:'Hiranandani Gardens', sub:'Powai, Mumbai 400076', area:'powai', pin:'400076', x:0.7, y:1.2},
+  {id:'chandi', re:/chandivali/, name:'Chandivali', sub:'Mumbai 400072', area:'powai', pin:'400072', x:-1.6, y:1.6},
+  {id:'powai', re:/powai/, name:'Powai', sub:'Mumbai 400076', area:'powai', pin:'400076', x:0.4, y:0.2},
+  {id:'christ', re:/christ\s(university|college)/, name:'Christ University', sub:'Hosur Road, Bengaluru 560029', area:'kora', pin:'560029', x:-1.7, y:-0.9, kind:'College'},
+  {id:'hsr', re:/\bhsr\b/, name:'HSR Layout', sub:'Bengaluru 560102', area:'kora', pin:'560102', x:1.6, y:2.0},
+  {id:'kora', re:/koramangala/, name:'Koramangala', sub:'Bengaluru 560034', area:'kora', pin:'560034', x:0, y:0},
+  {id:'hinj3', re:/phase\s*(3|iii|three)/, name:'Hinjewadi Phase 3', sub:'Pune 411057', area:'hinj', pin:'411057', x:-2.3, y:0.4},
+  {id:'hinj2', re:/phase\s*(2|ii|two)/, name:'Hinjewadi Phase 2', sub:'Pune 411057', area:'hinj', pin:'411057', x:-0.6, y:0.1},
+  {id:'wakad', re:/wakad/, name:'Wakad', sub:'Pune 411057', area:'hinj', pin:'411057', x:2.5, y:1.5},
+  {id:'hinj1', re:/hinj[ae]wadi|rajiv gandhi infotech/, name:'Hinjewadi Phase 1', sub:'Pune 411057', area:'hinj', pin:'411057', x:1.2, y:0}
+];
+const PINS = {'400076':'powai','400072':'chandi','560034':'kora','560095':'kora','560029':'christ','560102':'hsr','411057':'hinj1'};
+
+const L = [
+ {id:'p1',area:'powai',name:'Lakeside Boys PG',loc:'Near IIT Main Gate, Powai',kind:'PG',cfg:'Double sharing',rent:14500,dep:14500,maint:0,brok:0,gender:'Boys',food:1,ac:1,elec:0,x:1.9,y:-0.5,bach:'verified',avail:'Now',hue:205,owner:'Mr. Suresh Patil',good:['3 meals a day, veg and non-veg','Weekly housekeeping and laundry','Wi-Fi and power backup included'],warn:['Curfew at 11:30 pm may clash with late lab hours'],rules:['Curfew 11:30 pm','No overnight guests','No alcohol on premises']},
+ {id:'p2',area:'powai',name:"Saanvi Women's PG",loc:'Powai Vihar, Powai',kind:'PG',cfg:'Single room, attached bath',rent:18500,dep:37000,maint:0,brok:0,gender:'Girls',food:1,ac:1,elec:0,x:2.1,y:0.3,bach:'verified',avail:'Now',hue:330,owner:'Mrs. Kavita Rao',good:['Warden and CCTV round the clock','Private bathroom','Meals and laundry included'],warn:[],rules:['Curfew 10:30 pm, late pass on request','Only female visitors in rooms']},
+ {id:'p3',area:'powai',name:'Room in a 3BHK',loc:'Hiranandani Gardens, Powai',kind:'Shared flat',cfg:'Private room, attached bath',rent:22000,dep:66000,maint:1500,brok:0,gender:'Any',food:0,ac:1,elec:900,x:0.8,y:1.4,bach:'verified',avail:'15 Oct',hue:170,owner:'Mr. Anil Mehta',fee:5000,mates:['Product designer, 26','Data analyst, 25'],good:['Society gym and pool','Flatmates share a cook at ₹2,500 each'],warn:['Society charges a one-time ₹5,000 move-in fee'],rules:['No smoking indoors','Guests are fine, tell flatmates first']},
+ {id:'p4',area:'powai',name:'1RK in Tunga Village',loc:'Tunga Village, Powai',kind:'Whole flat',cfg:'1RK, semi-furnished',rent:16000,dep:80000,maint:800,brok:1,gender:'Any',food:0,ac:0,elec:700,x:2.5,y:-1.6,bach:'owner',avail:'Now',hue:30,owner:'Mr. Ramesh Yadav',good:['Your own place, no flatmates','2 min to Powai market'],warn:['Deposit is 5× rent; 2 to 3× is usual in Powai',"Brokerage of one month's rent"],rules:['Owner lives on the ground floor']},
+ {id:'p5',area:'powai',name:'Habitat Co-living',loc:'Saki Vihar Road, Powai',kind:'Co-living',cfg:'Twin sharing',rent:19000,dep:19000,maint:0,brok:0,gender:'Any',food:1,ac:1,elec:1200,x:2.8,y:0.9,bach:'verified',avail:'Now',hue:260,owner:'Habitat Living',good:['Wi-Fi, housekeeping and power backup included','Stays from 3 months','Breakfast and dinner on weekdays'],warn:['Electricity billed separately at ₹12 per unit'],rules:['No curfew','Guests until 10 pm']},
+ {id:'p6',area:'powai',name:'Room in a 2BHK',loc:'Chandivali, Powai',kind:'Shared flat',cfg:'Private room, shared bath',rent:12500,dep:25000,maint:700,brok:0,gender:'Boys',food:0,ac:0,elec:600,x:-1.5,y:1.7,bach:'owner',avail:'Now',hue:120,owner:'Mr. Vijay Kulkarni',mates:['MTech student at IIT Bombay, 24'],good:['Cheapest private room in the area','Your flatmate studies at IIT Bombay'],warn:['25 to 30 min by auto in evening traffic'],rules:['Vegetarian kitchen']},
+ {id:'p7',area:'powai',name:'2BHK for three friends',loc:'Hiranandani Gardens, Powai',kind:'Whole flat',cfg:'2BHK, fully furnished',rent:58000,dep:174000,maint:4500,brok:1,gender:'Any',food:0,ac:1,elec:2400,x:0.4,y:1.9,bach:'ask',avail:'1 Nov',hue:45,owner:'Mrs. Neha Shah',beds:3,good:['About ₹19,300 each for three people','Two balconies, fully furnished'],warn:['Society rules on bachelors not confirmed. Ask for the NOC before paying',"3 months' deposit plus brokerage"],rules:['Society: no parties after 10 pm']},
+ {id:'p8',area:'powai',name:'Powai Budget Boys PG',loc:'Near Powai market',kind:'PG',cfg:'Triple sharing',rent:8500,dep:8500,maint:0,brok:0,gender:'Boys',food:1,ac:0,elec:0,x:2.3,y:-0.9,bach:'verified',avail:'Now',hue:10,owner:'Mr. Dinesh Gupta',good:['Lowest rent near IIT','Meals included'],warn:['Three to a room with limited storage','One bathroom for six people'],rules:['Curfew 11 pm']},
+ {id:'p9',area:'powai',name:'Room in a 3BHK',loc:'Raheja Vihar, Powai',kind:'Shared flat',cfg:'Private room, attached bath',rent:17500,dep:35000,maint:1200,brok:0,gender:'Girls',food:0,ac:1,elec:800,x:-1.2,y:-1.0,bach:'verified',avail:'Now',hue:190,owner:'Mrs. Farida Khan',mates:['Consultant, 27','PhD scholar at IIT Bombay, 26'],good:['Lake-view balcony','Quiet gated society'],warn:['Few autos late at night'],rules:['Women-only flat']},
+ {id:'p10',area:'powai',name:'Studio near IIT Market Gate',loc:'IIT Market Gate, Powai',kind:'Whole flat',cfg:'Studio (1RK), fully furnished',rent:21000,dep:63000,maint:1000,brok:0,gender:'Any',food:0,ac:1,elec:1000,x:1.0,y:-1.9,bach:'owner',avail:'20 Oct',hue:290,owner:'Dr. Prakash Iyer',good:['5 min walk to the market gate','Direct from owner, no brokerage'],warn:[],rules:['No pets']},
+
+ {id:'k1',area:'kora',name:'Stanza Boys PG',loc:'6th Block, Koramangala',kind:'PG',cfg:'Double sharing',rent:13000,dep:26000,maint:0,brok:0,gender:'Boys',food:1,ac:1,elec:0,x:-0.6,y:-0.4,bach:'verified',avail:'Now',hue:20,owner:'Mr. Manjunath Gowda',good:['Meals and Wi-Fi included','Next to the 6th Block bus stop'],warn:[],rules:['Curfew at midnight']},
+ {id:'k2',area:'kora',name:"Nest Women's PG",loc:'1st Block, Koramangala',kind:'PG',cfg:'Single room',rent:16500,dep:33000,maint:0,brok:0,gender:'Girls',food:1,ac:1,elec:0,x:1.1,y:0.8,bach:'verified',avail:'Now',hue:320,owner:'Mrs. Lakshmi Reddy',good:['Biometric entry and CCTV','Single room with a study table'],warn:['Bathroom shared between two rooms'],rules:['Curfew 11 pm']},
+ {id:'k3',area:'kora',name:'Room in a 3BHK',loc:'5th Block, Koramangala',kind:'Shared flat',cfg:'Private room, attached bath',rent:18000,dep:100000,maint:1500,brok:0,gender:'Any',food:0,ac:0,elec:800,x:0.2,y:-0.2,bach:'owner',avail:'Now',hue:160,owner:'Mr. Arjun Rao',mates:['Startup founder, 27','Backend engineer, 25'],good:['Walk to 5th Block cafés and gyms','Quiet on weekdays'],warn:['Deposit is about 5.5× rent. Bengaluru often asks for more, but try for 3×'],rules:['No smoking']},
+ {id:'k4',area:'kora',name:'1BHK in 4th Block',loc:'4th Block, Koramangala',kind:'Whole flat',cfg:'1BHK, semi-furnished',rent:28000,dep:150000,maint:2000,brok:0,gender:'Any',food:0,ac:0,elec:1200,x:-1.0,y:0.9,bach:'owner',avail:'1 Nov',hue:40,owner:'Mrs. Shobha Nair',good:['Independent house, first floor','Covered bike parking'],warn:['Deposit is over 5× rent'],rules:['Owner prefers working professionals']},
+ {id:'k5',area:'kora',name:'Kora Commons Co-living',loc:'8th Block, Koramangala',kind:'Co-living',cfg:'Private room',rent:17000,dep:34000,maint:0,brok:0,gender:'Any',food:1,ac:1,elec:900,x:-1.6,y:-1.2,bach:'verified',avail:'Now',hue:250,owner:'Kora Commons',good:['Gym, laundry and Wi-Fi included','Monthly community dinners'],warn:['6-month lock-in'],rules:['No curfew']},
+ {id:'k6',area:'kora',name:'Room in a 2BHK',loc:'ST Bed Layout, Koramangala',kind:'Shared flat',cfg:'Private room, shared bath',rent:14500,dep:50000,maint:800,brok:0,gender:'Boys',food:0,ac:0,elec:600,x:1.7,y:-0.6,bach:'owner',avail:'Now',hue:100,owner:'Mr. Kiran Shetty',mates:['UX researcher, 24'],good:['Quiet residential lane','Flatmate moves out in March; you could take over the lease'],warn:[],rules:['Vegetarian kitchen']},
+ {id:'k7',area:'kora',name:'2BHK for two friends',loc:'HSR Layout Sector 1',kind:'Whole flat',cfg:'2BHK, semi-furnished',rent:36000,dep:200000,maint:2500,brok:1,gender:'Any',food:0,ac:0,elec:1500,x:1.8,y:1.9,bach:'ask',avail:'Now',hue:60,owner:'Mr. Prakash Hegde',beds:2,good:['About ₹18,000 each for two','Two attached bathrooms'],warn:['Owner has not confirmed bachelors are allowed','Deposit is over 5× rent, plus brokerage'],rules:['Visitors sign in at the gate']},
+
+ {id:'h1',area:'hinj',name:'Infotech Boys PG',loc:'Phase 1, Hinjewadi',kind:'PG',cfg:'Double sharing',rent:9000,dep:9000,maint:0,brok:0,gender:'Boys',food:1,ac:0,elec:0,x:1.5,y:0.4,bach:'verified',avail:'Now',hue:25,owner:'Mr. Sachin Jadhav',good:['Walk to Phase 1 offices','Meals included'],warn:['No AC, fans only'],rules:['Curfew 11 pm']},
+ {id:'h2',area:'hinj',name:'Shree Girls PG',loc:'Phase 1, Hinjewadi',kind:'PG',cfg:'Single room',rent:11500,dep:11500,maint:0,brok:0,gender:'Girls',food:1,ac:1,elec:0,x:0.6,y:-0.5,bach:'verified',avail:'Now',hue:330,owner:'Mrs. Sunita Pawar',good:['Company shuttle stop outside','Laundry and Wi-Fi included'],warn:[],rules:['Curfew 10:30 pm']},
+ {id:'h3',area:'hinj',name:'Room in a 2BHK',loc:'Wakad',kind:'Shared flat',cfg:'Private room, attached bath',rent:9500,dep:20000,maint:600,brok:0,gender:'Any',food:0,ac:0,elec:500,x:2.6,y:1.5,bach:'owner',avail:'Now',hue:140,owner:'Mr. Nitin Deshmukh',mates:['QA engineer, 25'],good:['More food options in Wakad','Bus to Phase 1 in 15 min'],warn:['Morning traffic at the Wakad bridge'],rules:['Guests welcome']},
+ {id:'h4',area:'hinj',name:'1BHK in Phase 2',loc:'Phase 2, Hinjewadi',kind:'Whole flat',cfg:'1BHK, fully furnished',rent:15000,dep:45000,maint:1500,brok:0,gender:'Any',food:0,ac:1,elec:900,x:-0.5,y:0.6,bach:'verified',avail:'Now',hue:210,owner:'Mrs. Asha Kale',good:['New building with lift and power backup','Direct from owner'],warn:[],rules:['No pets']},
+ {id:'h5',area:'hinj',name:'Ridge Co-living',loc:'Phase 1, Hinjewadi',kind:'Co-living',cfg:'Twin sharing',rent:12000,dep:12000,maint:0,brok:0,gender:'Any',food:1,ac:1,elec:700,x:0.9,y:0.9,bach:'verified',avail:'Now',hue:270,owner:'Ridge Living',good:['All bills included except electricity','Rooftop work lounge'],warn:[],rules:['No curfew']},
+ {id:'h6',area:'hinj',name:'2BHK for two friends',loc:'Maan, near Phase 3',kind:'Whole flat',cfg:'2BHK, semi-furnished',rent:20000,dep:60000,maint:2000,brok:1,gender:'Any',food:0,ac:0,elec:1200,x:-2.1,y:0.9,bach:'ask',avail:'1 Nov',hue:90,owner:'Mr. Ganesh More',beds:2,good:['About ₹10,000 each for two','Quiet, near the Phase 3 offices'],warn:['Society approval for bachelors pending',"Brokerage of one month's rent"],rules:[]}
+];
+
+const ART = {
+  'PG':'<path d="M8 48V20M8 38h48v10M56 38v-6a6 6 0 0 0-6-6H26v12"/><rect x="12" y="28" width="11" height="8" rx="3"/>',
+  'Shared flat':'<rect x="18" y="8" width="28" height="48" rx="2"/><circle cx="39" cy="33" r="2"/><path d="M10 56h44"/>',
+  'Whole flat':'<rect x="14" y="10" width="36" height="46" rx="2"/><path d="M22 18h6M36 18h6M22 28h6M36 28h6M22 38h6M36 38h6M28 56v-8h8v8"/>',
+  'Co-living':'<path d="M14 34v-8a6 6 0 0 1 6-6h24a6 6 0 0 1 6 6v8"/><path d="M8 36a4 4 0 0 1 8 0v4h32v-4a4 4 0 0 1 8 0v12H8z"/><path d="M14 48v4M50 48v4"/>'
+};
+const CHECK = [
+  {g:'Before you visit', items:[
+    ['budget','Budget covers rent, maintenance, electricity and food','Rent is usually 60–70% of what you actually spend each month'],
+    ['bach','Owner and society allow bachelors','Ask for the society NOC in writing. Many societies block bachelors after move-in'],
+    ['deposit','Deposit is reasonable','2–3 months is normal in Mumbai and Pune. Bengaluru often asks 5–10; negotiate'],
+    ['brokerage','Brokerage agreed in writing, or none','Usually one month\'s rent. Pay only after the agreement is signed']]},
+  {g:'On the visit', items:[
+    ['water','Water supply hours and pressure checked','Turn on the shower on the top floor'],
+    ['network','Mobile signal and Wi-Fi speed tested in the room','Run a speed test where your desk will be'],
+    ['damp','No seepage or mould on walls and ceiling','Look behind cupboards. It gets worse in the monsoon'],
+    ['rules','House rules are clear','Curfew, guests, cooking non-veg, alcohol, smoking'],
+    ['mates','Met the flatmates or PG warden','Ask about sleep times, cleaning and guests'],
+    ['meter','Separate electricity meter, per-unit rate known','Sub-meters at ₹12–15 per unit add up with AC']]},
+  {g:'Before you pay', items:[
+    ['owner','Owner\'s ID and proof of ownership seen','Index II or a recent property tax bill in the owner\'s name'],
+    ['agreement','Rent agreement drafted and signed','In Maharashtra a leave and licence agreement must be registered'],
+    ['notice','Lock-in and notice period agreed','Typical: 3-month lock-in, 1-month notice'],
+    ['inventory','Inventory list with photos','Furniture, appliances and any existing damage']]},
+  {g:'Moving in', items:[
+    ['police','Police verification submitted','Most cities let you do it online'],
+    ['readings','Meter reading and key count photographed','Send the photos to the owner on WhatsApp the same day']]}
+];
+
+/* ---------------- state ---------------- */
+const $ = s => document.querySelector(s);
+const inr = n => '₹' + Math.round(n).toLocaleString('en-IN');
+const kfmt = n => '₹' + (n >= 1000 ? (n/1000).toFixed(n % 1000 ? 1 : 0).replace(/\.0$/,'') + 'k' : n);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const byId = id => L.find(l => l.id === id);
+const placeById = id => PLACES.find(p => p.id === id);
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait = ms => new Promise(r => setTimeout(r, reduced ? 0 : ms));
+const art = l => `<div class="art" style="--h:${l.hue}"><svg viewBox="0 0 64 64">${ART[l.kind]}</svg></div>`;
+const ICON = {
+  pin:'<svg class="ico" viewBox="0 0 24 24"><use href="#i-pin"/></svg>',
+  walk:'<svg class="ico" viewBox="0 0 24 24"><circle cx="13" cy="4.5" r="1.5"/><path d="M10 21l2-6-3-3 1-5 4 3 3 1M9 12l-2 3"/></svg>',
+  auto:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 16V9a4 4 0 0 1 4-4h6l4 5h2v6"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M9 17h6"/></svg>',
+  chev:'<svg class="ico" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>'
+};
+
+const S = {
+  started:false, busy:false, places:[], anchor:null, area:null, base:[], q:{}, sort:'match',
+  filter:{nobrok:false, food:false, verified:false}, tab:'list', detail:null, short:new Set(),
+  visits:{}, final:null, checks:{}, autoChecks:new Set(), agree:{}, sent:false
+};
+try { Object.assign(S.checks, JSON.parse(localStorage.getItem('roost-checks') || '{}')); } catch(e){}
+function saveChecks(){ try { localStorage.setItem('roost-checks', JSON.stringify(S.checks)); } catch(e){} }
+function tick(ids){ ids.forEach(id => { if (!S.checks[id]){ S.checks[id] = true; S.autoChecks.add(id); } }); saveChecks(); syncProg(); }
+const total = CHECK.reduce((n,g) => n + g.items.length, 0);
+function syncProg(){ $('#clProg').textContent = Object.values(S.checks).filter(Boolean).length + '/' + total; }
+
+/* ---------------- geo + scoring ---------------- */
+function commute(l){
+  const a = S.anchor; if (!a || a.area !== l.area) return null;
+  const d = Math.hypot(l.x - a.x, l.y - a.y) * 1.3;
+  if (d <= 1.4) return {mins:Math.max(3, Math.round(d * 13)), mode:'walk', km:d};
+  return {mins:Math.round(6 + d * 4.5), mode:'auto', km:d};
+}
+function monthly(l){
+  const food = l.food ? 0 : 4500, wifi = (l.kind === 'PG' || l.kind === 'Co-living') ? 0 : 400;
+  return {rent:l.rent, maint:l.maint, elec:l.elec, food, wifi, total:l.rent + l.maint + l.elec + food + wifi};
+}
+function share(l){ return l.beds ? l.beds : 1; }
+function score(l){
+  const c = commute(l); const per = monthly(l).total / share(l);
+  return -(c ? c.mins : 20) * 1.3 - per / 1200 + (l.bach === 'verified' ? 5 : l.bach === 'ask' ? -6 : 0) - l.warn.length * 2 - (l.brok ? 3 : 0);
+}
+function visible(){
+  const f = S.filter, q = S.q;
+  let list = S.base.filter(l => {
+    if (f.nobrok && l.brok) return false;
+    if (f.food && !l.food) return false;
+    if (f.verified && l.bach !== 'verified') return false;
+    return true;
+  });
+  const sorts = {match:(a,b) => score(b) - score(a), rent:(a,b) => a.rent / share(a) - b.rent / share(b), commute:(a,b) => (commute(a)?.mins ?? 99) - (commute(b)?.mins ?? 99), deposit:(a,b) => a.dep / a.rent - b.dep / b.rent};
+  return list.sort(sorts[S.sort]);
+}
+
+/* ---------------- parsing ---------------- */
+function matchPlace(t){ return PLACES.find(p => p.re.test(t)); }
+function parseSearch(t){
+  const q = {};
+  if (/\bpg\b|paying guest|hostel/.test(t)) q.kind = 'PG';
+  else if (/co-?living/.test(t)) q.kind = 'Co-living';
+  else if (/shared|flatmate|room in|roommate/.test(t)) q.kind = 'Shared flat';
+  else if (/\b1\s?rk\b|studio|\b[123]\s?bhk\b|whole|entire|independent|own flat/.test(t)) q.kind = 'Whole flat';
+  if (/\bgirls?\b|women|female|ladies/.test(t)) q.gender = 'Girls';
+  else if (/\bboys?\b|\bmen\b|\bmale\b|gents/.test(t)) q.gender = 'Boys';
+  const m = t.match(/(?:under|below|less than|within|upto|up to|max|budget(?: of| is)?|<)\s*(?:rs\.?|₹|inr)?\s*([\d,]+(?:\.\d+)?)\s*(k\b)?/);
+  if (m) q.budget = Math.round(parseFloat(m[1].replace(/,/g,'')) * (m[2] ? 1000 : 1));
+  const fr = t.match(/(\d|two|three|four)\s+(friends|people|of us)/);
+  if (fr) q.people = ({two:2,three:3,four:4})[fr[1]] || +fr[1];
+  if (/no[\s-]?broker|without broker|zero broker/.test(t)) q.nobrok = true;
+  if (/food|meals|tiffin/.test(t)) q.food = true;
+  return q;
+}
+function isAddress(t){
+  return /\b(my|our)\s+(?:(?:home|flat|house|office|college|hostel|campus|workplace|work|university|institute)\s+)?(?:address\s*)?(is|:|at)\b|\bi\s+(live|stay|work|study)\s+(at|in|near)|^save\b|\bpin\s*code\b/.test(t)
+    || (/\b[1-9]\d{5}\b/.test(t) && !/find|show|search|pg|flat|room|rent/.test(t));
+}
+function labelFor(t, p){
+  if (/college|university|campus|study|institute|iit|hostel/.test(t) || p?.kind === 'College') return 'College';
+  if (/office|work/.test(t)) return 'Office';
+  return 'Home';
+}
+
+/* ---------------- chat ---------------- */
+const thread = $('#threadInner');
+function addUser(text){ const d = document.createElement('div'); d.className = 'msg-user'; d.textContent = text; thread.append(d); scrollDown(); }
+function addAI(){ const d = document.createElement('div'); d.className = 'msg-ai'; thread.append(d); scrollDown(); return d; }
+function scrollDown(){ const t = $('#thread'); requestAnimationFrame(() => t.scrollTo({top:t.scrollHeight, behavior:reduced ? 'auto' : 'smooth'})); }
+async function think(el, steps){
+  el.innerHTML = '<div class="thinking"><svg class="logo"><use href="#logo"/></svg><span class="step"></span></div>';
+  const s = el.querySelector('.step');
+  for (const st of steps){ s.textContent = st; await wait(600); }
+}
+const trace = t => `<div class="trace">${t} ${ICON.chev}</div>`;
+const next = items => `<div class="next">${items.map(([txt, primary]) => `<button class="${primary ? 'primary' : ''}" data-say="${esc(txt)}">${esc(txt)}</button>`).join('')}</div>`;
+
+async function send(raw){
+  const text = raw.trim();
+  if (!text || S.busy) return;
+  S.busy = true;
+  $('#input').value = ''; autosize(); syncSend();
+  if (!S.started) start();
+  addUser(text);
+  $('#threadTitle').textContent = S.anchor ? 'Near ' + S.anchor.name : text;
+  const el = addAI();
+  const t = text.toLowerCase();
+  try {
+    if (isAddress(t)) await handleAddress(el, t, text);
+    else if (/agreement|lease|leave and licen/.test(t)) await handleAgreementAsk(el);
+    else if (/checklist|what (should|to) (i )?check|before paying|before i pay/.test(t)) await handleChecklistAsk(el);
+    else if (/police verification/.test(t)) await canned(el, 'police');
+    else if (/movers|packers|shift(ing)? my/.test(t)) await canned(el, 'movers');
+    else if (/split|share (the )?costs?/.test(t)) await canned(el, 'split');
+    else await handleSearch(el, t);
+  } finally { S.busy = false; scrollDown(); }
+}
+
+async function handleAddress(el, t, raw){
+  await think(el, ['Reading the address', 'Matching locality and pincode']);
+  const pinM = t.match(/\b[1-9]\d{5}\b/);
+  const place = matchPlace(t);
+  const pinPlace = pinM && PINS[pinM[0]] ? placeById(PINS[pinM[0]]) : null;
+  const label = labelFor(t, place || pinPlace);
+  const street = raw.replace(/^.*?\b(is|at|in|near|:)\s+/i, '').trim();
+  if (place && (!pinM || (pinPlace && pinPlace.area === place.area))){
+    return savePlace(el, place, label, [ 'Locality matched', pinM ? 'Pincode matches' : 'Pincode added: ' + place.pin ], street);
+  }
+  if (!place && pinPlace){
+    return savePlace(el, pinPlace, label, ['Pincode matched', 'Locality filled in'], street);
+  }
+  if (place && pinPlace && pinPlace.area !== place.area){
+    el.innerHTML = `<div class="ai-text"><p>The pincode ${pinM[0]} belongs to <b>${pinPlace.name}</b>, but you also mentioned <b>${place.name}</b>. Which one should I save as your ${label.toLowerCase()}?</p></div>` + optionsHTML([place, pinPlace], label, street);
+    return;
+  }
+  const hint = place ? `I found <b>${place.name}</b>, but pincode ${pinM[0]} doesn't match it.` : `I couldn't place "${esc(street.slice(0, 60))}" on the map.`;
+  const opts = place ? [place] : [placeById('iitb'), placeById('kora'), placeById('hinj1')];
+  el.innerHTML = `<div class="ai-text"><p>${hint} Did you mean one of these? If not, send the full address with the area name and pincode.</p></div>` + optionsHTML(opts, label, street);
+}
+function optionsHTML(opts, label, street){
+  return `<div class="options">${opts.map(p => `<button data-place="${p.id}" data-label="${label}" data-street="${esc(street)}">${ICON.pin}<div>${esc(p.name)}<span>${esc(p.sub)}</span></div></button>`).join('')}</div>`;
+}
+function savePlace(el, p, label, checks, street){
+  const saved = Object.assign({}, p, {label, street});
+  S.places = S.places.filter(x => x.label !== label).concat(saved);
+  S.anchor = saved; renderPlaces();
+  const verb = label === 'College' ? 'near my college' : label === 'Office' ? 'near my office' : 'near home';
+  el.innerHTML = trace('Checked locality and pincode') +
+    `<div class="placecard"><div class="pin">${ICON.pin}</div><div><strong>${esc(p.name)}</strong><span>${esc(p.sub)} · saved as ${label}</span><div class="checks">${checks.map(c => `<i>${c}</i>`).join('')}</div></div></div>` +
+    `<div class="ai-text"><p>Saved. Every listing will now show the walk or auto time to ${esc(p.name)}.</p></div>` +
+    next([[`Find a PG ${verb}`, true], [`Shared flats ${verb} under ₹20k`], [`Whole flat for 2 friends ${verb}`]]);
+  if (S.base.length) renderPanel();
+}
+
+async function handleSearch(el, t){
+  const q = parseSearch(t);
+  const place = matchPlace(t);
+  const mine = t.match(/near (my|our) (college|office|work|home|place|campus|university)/);
+  let anchor = null;
+  if (place) anchor = S.places.find(p => p.id === place.id) || Object.assign({}, place, {label:'Area'});
+  else if (mine){
+    const want = /college|campus|university/.test(mine[2]) ? 'College' : /office|work/.test(mine[2]) ? 'Office' : 'Home';
+    anchor = S.places.find(p => p.label === want);
+    if (!anchor){
+      await think(el, ['Looking for your saved places']);
+      el.innerHTML = `<div class="ai-text"><p>I don't have your ${want.toLowerCase()} saved yet. What's the address? A name and pincode is enough.</p></div>` +
+        next([['My college is IIT Bombay, Powai 400076', true], ['My office is in Koramangala 5th Block, 560095'], ['I work at Hinjewadi Phase 1, Pune']]);
+      return;
+    }
+  }
+  const hasSearchWords = q.kind || q.gender || q.people || /find|show|search|looking|need|want|room|flat|pg|place|stay|rent|nearby|near/.test(t);
+  const refine = !anchor && !q.kind && S.base.length && (q.budget || q.nobrok || q.food || q.gender || /cheap|closer|nearest|verified|bachelor/.test(t));
+  if (!anchor && !refine){
+    if (!hasSearchWords || !(S.anchor || S.places.length)){
+      await think(el, ['Understanding what you need']);
+      el.innerHTML = `<div class="ai-text"><p>Where will you be spending your days? Tell me your college or office and I'll show places with real commute times. In this demo I cover Powai (IIT Bombay), Koramangala and Hinjewadi.</p></div>` +
+        next([['Find a PG near IIT Bombay under ₹15k', true], ['Shared flat in Koramangala'], ['My college is IIT Bombay, Powai 400076']]);
+      return;
+    }
+    anchor = S.anchor;
+  }
+
+  if (refine){
+    Object.assign(S.q, q);
+    if (q.nobrok) S.filter.nobrok = true;
+    if (q.food) S.filter.food = true;
+    if (/verified|bachelor/.test(t)) S.filter.verified = true;
+    if (/cheap/.test(t)) S.sort = 'rent';
+    if (/closer|nearest/.test(t)) S.sort = 'commute';
+    S.base = pool();
+    await think(el, ['Refining your results']);
+  } else {
+    S.anchor = anchor; S.area = anchor.area; S.q = q; S.sort = 'match';
+    S.filter = {nobrok:!!q.nobrok, food:!!q.food, verified:false}; S.detail = null; S.tab = 'list';
+    S.base = pool();
+    if (q.budget) tick(['budget']);
+    await think(el, ['Understanding what you need', `Searching ${AREAS[S.area].name} for ${q.kind ? KIND_PL[q.kind] : 'PGs, shared and whole flats'}`, `Working out commute times to ${anchor.name}`, 'Checking deposits, brokerage and bachelor rules']);
+  }
+  $('#threadTitle').textContent = 'Near ' + S.anchor.name;
+  openPanel(!refine);
+  const list = visible();
+  if (!list.length){
+    el.innerHTML = `<div class="ai-text"><p>Nothing matches all of that near ${esc(S.anchor.name)}. Try a higher budget or a different type of place.</p></div>` + next([['Show everything nearby', true], ['Shared flats instead']]);
+    return;
+  }
+  const best = list.slice().sort((a,b) => score(b) - score(a))[0];
+  const cheap = list.slice().sort((a,b) => monthly(a).total / share(a) - monthly(b).total / share(b))[0];
+  const risky = list.find(l => l.warn.length && (l.dep / l.rent >= 4 || l.bach === 'ask'));
+  const c = commute(best);
+  const what = q.kind ? KIND_PL[q.kind] : 'places';
+  let body = `<p>I found <b>${list.length} ${refine ? 'places' : what}</b> near ${esc(S.anchor.name)}${S.q.budget ? ' under ' + inr(S.q.budget) : ''}. Best fit: <b>${esc(best.name)}</b> in ${esc(best.loc.split(',')[0])}, ${c ? c.mins + ' min ' + (c.mode === 'walk' ? 'walk' : 'by auto') : 'nearby'}, ${inr(best.rent)} a month${best.food ? ' with meals' : ''}.</p>`;
+  if (cheap !== best) body += `<p>Cheapest overall is <b>${esc(cheap.name)}</b> at about ${inr(monthly(cheap).total / share(cheap))} a month${share(cheap) > 1 ? ' each' : ''} once you add food and bills.</p>`;
+  if (risky) body += `<p>Be careful with <b>${esc(risky.name)}</b> (${esc(risky.loc.split(',')[0])}): ${esc(risky.warn[0].charAt(0).toLowerCase() + risky.warn[0].slice(1))}.</p>`;
+  if (!refine) body += `<p>I've started a move-in checklist for you in the panel. It ticks itself off as we go.</p>`;
+  el.innerHTML = trace(refine ? 'Refined results' : `Checked ${list.length * 7 + 11} listings, kept ${list.length}`) + `<div class="ai-text">${body}</div>` + resultCard(list) +
+    next([['Only no-brokerage places'], ['With food included'], ['Show them on a map', true]]);
+}
+const KIND_PL = {'PG':'PGs','Shared flat':'shared flats','Whole flat':'whole flats','Co-living':'co-living spaces'};
+function pool(){
+  const q = S.q;
+  return L.filter(l => l.area === S.area)
+    .filter(l => !q.kind || l.kind === q.kind || (q.people && l.beds))
+    .filter(l => !q.gender || l.gender === q.gender || l.gender === 'Any')
+    .filter(l => !q.budget || l.rent / share(l) <= q.budget * 1.05)
+    .filter(l => !q.people || !l.beds || l.beds >= q.people);
+}
+function resultCard(list){
+  return `<button class="result-card" data-open="list"><div class="stack">${list.slice(0,3).map(art).join('')}</div><div class="meta"><strong>${list.length} places near ${esc(S.anchor.name)}</strong><span>From ${inr(Math.min(...list.map(l => l.rent / share(l))))} a month · ${list.filter(l => l.bach === 'verified').length} confirmed bachelor-friendly</span></div><span class="pill-btn">View</span></button>`;
+}
+
+async function handleChecklistAsk(el){
+  await think(el, ['Pulling up your checklist']);
+  S.tab = 'check'; S.detail = null; openPanel(false);
+  const left = CHECK.flatMap(g => g.items).filter(i => !S.checks[i[0]]);
+  el.innerHTML = `<div class="ai-text"><p>${left.length} things left on your checklist. The ones people most often regret skipping: <b>getting the society NOC for bachelors</b>, <b>checking water pressure on the visit</b> and <b>registering the agreement before paying the deposit</b>.</p></div>`;
+}
+async function handleAgreementAsk(el){
+  if (!S.final){
+    await think(el, ['Checking your shortlist']);
+    el.innerHTML = `<div class="ai-text"><p>Happy to. Which place is it for? Open a listing and tap <b>Finalise this place</b>, and I'll fill in the agreement from its details.</p></div>`;
+    return;
+  }
+  await think(el, ['Opening your draft']);
+  S.tab = 'deal'; S.detail = null; openPanel(false);
+  el.innerHTML = `<div class="ai-text"><p>Your draft for <b>${esc(S.final.name)}</b> is open in the panel. Check the dates and amounts, then send it to ${esc(S.final.owner)} for e-sign.</p></div>`;
+}
+const CANNED = {
+  police:l => `<p>Here's how to file the tenant police verification for ${esc(l ? l.loc : 'your new place')}:</p><p>1. Get the owner's consent and a copy of their ID.<br>2. Fill the tenant form on your state police citizen portal with your Aadhaar and a photo.<br>3. Upload the signed agreement. Approval usually takes 7–10 days.</p><p>I've added it to your checklist. Want a reminder once the agreement is signed?</p>`,
+  movers:() => `<p>Three movers can do a single-room shift this week (sample quotes):</p><table class="mini-table"><tr><td>ShiftEasy · 1 tempo, 2 helpers</td><td>₹3,800</td></tr><tr><td>BoxBuddy · includes packing</td><td>₹5,200</td></tr><tr><td>CampusMove · student rate</td><td>₹2,900</td></tr></table><p>For a PG or a single room you can usually manage with an auto-tempo and one helper.</p>`,
+  split:l => { if (!l) return '<p>Finalise a place first and I\'ll split the costs.</p>'; const m = monthly(l), n = share(l) > 1 ? share(l) : (l.mates ? l.mates.length + 1 : 1); return `<p>Here's a fair monthly split for ${esc(l.name)}${n > 1 ? ' across ' + n + ' people' : ''}:</p><table class="mini-table"><tr><td>Rent (your share)</td><td>${inr(l.beds ? l.rent / l.beds : l.rent)}</td></tr><tr><td>Maintenance</td><td>${inr(m.maint / n)}</td></tr><tr><td>Electricity (estimate)</td><td>${inr(m.elec / n)}</td></tr><tr><td>Wi-Fi</td><td>${inr(m.wifi / n)}</td></tr><tr><td>Food</td><td>${inr(m.food)}</td></tr></table><p>Set up a shared expense group and add the electricity bill when it arrives each month.</p>`; }
+};
+async function canned(el, key){
+  await think(el, ['Working on it']);
+  el.innerHTML = `<div class="ai-text">${CANNED[key](S.final)}</div>`;
+}
+
+function start(){
+  S.started = true; $('#app').classList.add('started');
+  $('#dockSlot').append($('#composer')); $('#dockSlot').append($('#places'));
+  $('#input').placeholder = 'Ask a follow-up, e.g. "no brokerage" or "closer to campus"';
+  setTimeout(() => $('#input').focus(), 50);
+}
+
+/* ---------------- panel ---------------- */
+async function openPanel(skeleton){
+  const app = $('#app'), was = app.classList.contains('split');
+  app.classList.add('split');
+  if (skeleton){
+    S.tab = 'list'; S.detail = null; syncTabs();
+    $('#pBody').innerHTML = `<div class="grid">${'<div class="skel"><div class="a"></div><div class="b"></div><div class="c"></div><div class="d"></div></div>'.repeat(6)}</div>`;
+    await wait(was ? 350 : 650);
+  }
+  renderPanel();
+}
+function closePanel(){ $('#app').classList.remove('split','expanded'); }
+function syncTabs(){
+  $('#dealTab').hidden = !S.final;
+  document.querySelectorAll('#tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
+}
+function renderPanel(){
+  syncTabs(); syncProg();
+  const b = $('#pBody');
+  if (S.detail) return renderDetail();
+  if (S.tab === 'map') b.innerHTML = mapHTML();
+  else if (S.tab === 'check') b.innerHTML = checklistHTML();
+  else if (S.tab === 'deal') b.innerHTML = agreementHTML();
+  else b.innerHTML = listHTML();
+  b.scrollTop = 0;
+}
+function listHTML(){
+  if (!S.base.length) return `<p style="padding:24px 18px;color:var(--muted)">Search for a place to see listings here.</p>`;
+  const list = visible(), f = S.filter;
+  const chip = (k, t) => `<button class="chip" data-f="${k}" aria-pressed="${!!f[k]}">${t}</button>`;
+  return `<div class="p-sub"><h2>Near ${esc(S.anchor.name)}<span>${list.length} places</span></h2>
+    <select class="sort" id="sort" aria-label="Sort"><option value="match"${S.sort === 'match' ? ' selected' : ''}>Best fit</option><option value="commute"${S.sort === 'commute' ? ' selected' : ''}>Shortest commute</option><option value="rent"${S.sort === 'rent' ? ' selected' : ''}>Lowest rent</option><option value="deposit"${S.sort === 'deposit' ? ' selected' : ''}>Lowest deposit</option></select></div>
+    <div class="anchor-note">${ICON.pin}Commute times from ${esc(S.anchor.name)}${S.anchor.label && S.anchor.label !== 'Area' ? ' (your ' + S.anchor.label.toLowerCase() + ')' : ''}</div>
+    <div class="chips">${chip('verified','Bachelor-friendly confirmed')}${chip('nobrok','No brokerage')}${chip('food','Food included')}</div>
+    ${list.length ? `<div class="grid">${list.map(cardHTML).join('')}</div>` : `<p style="padding:24px 18px;color:var(--muted)">No places match these filters. Turn one off to see more.</p>`}`;
+}
+function bachTag(l){ return l.bach === 'verified' ? '<span class="tag ok">Bachelors OK · society confirmed</span>' : l.bach === 'owner' ? '<span class="tag">Bachelors OK · owner says</span>' : '<span class="tag warn">Bachelors: not confirmed</span>'; }
+function cardHTML(l, i){
+  const c = commute(l), on = S.short.has(l.id);
+  return `<article class="card" style="--i:${i}" data-id="${l.id}" tabindex="0" aria-label="${esc(l.name)}">
+    <div style="position:relative">${art(l)}<span class="kind">${l.kind}</span>
+      <button class="heart" data-heart="${l.id}" aria-pressed="${on}" aria-label="Shortlist ${esc(l.name)}"><svg class="ico" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button></div>
+    <div class="card-body">
+      <h3>${esc(l.name)}</h3>
+      <div class="loc">${esc(l.loc)}</div>
+      <div class="cfg">${esc(l.cfg)} · ${l.gender === 'Any' ? 'Anyone' : l.gender}${l.food ? ' · Meals' : ''}${l.ac ? ' · AC' : ''}</div>
+      ${c ? `<div class="commute">${c.mode === 'walk' ? ICON.walk : ICON.auto}${c.mins} min ${c.mode === 'walk' ? 'walk' : 'by auto'} to ${esc(S.anchor.name)}</div>` : ''}
+      <div class="tags">${bachTag(l)}${l.brok ? '' : '<span class="tag">No brokerage</span>'}${l.warn.length ? `<span class="tag warn">${l.warn.length} to check</span>` : ''}</div>
+      <div class="money"><span class="rent">${inr(l.rent)}<small>/mo</small></span><span class="dep">Deposit ${kfmt(l.dep)}</span>${l.beds ? `<span class="each">${kfmt(Math.round(l.rent / l.beds))} each</span>` : ''}</div>
+    </div></article>`;
+}
+
+/* map */
+const MAPS = {
+  powai:`<path d="M-230,-70 C-210,-170 -60,-190 20,-130 C90,-80 80,10 30,60 C-30,120 -170,110 -215,30 Z" fill="var(--water)"/>
+    <text x="-110" y="-20" fill="var(--faint)" font-size="15" font-style="italic">Powai Lake</text>
+    <path d="M70,-230 L260,-220 L270,-40 L150,-40 L95,-120 Z" fill="var(--park)"/>
+    <text x="150" y="-170" fill="var(--faint)" font-size="13">IIT Bombay campus</text>
+    <path d="M-330,-250 C-100,-240 100,-270 330,-250" stroke="var(--road)" stroke-width="10" fill="none"/>
+    <text x="-310" y="-262" fill="var(--faint)" font-size="11">JVLR</text>
+    <path d="M60,-330 C90,-150 60,0 150,120 S250,260 280,330" stroke="var(--road)" stroke-width="9" fill="none"/>
+    <text x="70" y="-290" fill="var(--faint)" font-size="11" transform="rotate(80 70 -290)">Adi Shankaracharya Marg</text>
+    <path d="M-330,190 C-100,160 120,110 330,60" stroke="var(--road)" stroke-width="9" fill="none"/>
+    <text x="180" y="98" fill="var(--faint)" font-size="11">Saki Vihar Rd</text>
+    <g fill="var(--line-soft)">${[[20,100],[80,100],[20,160],[80,160],[140,160],[20,220]].map(([x,y]) => `<rect x="${x}" y="${y}" width="46" height="46" rx="4"/>`).join('')}</g>
+    <text x="10" y="290" fill="var(--faint)" font-size="12">Hiranandani</text>`,
+  kora:`<g fill="var(--line-soft)">${Array.from({length:30}, (_, i) => `<rect x="${-300 + (i % 6) * 100}" y="${-270 + Math.floor(i / 6) * 110}" width="80" height="88" rx="6"/>`).join('')}</g>
+    <path d="M-330,-300 L330,-300" stroke="var(--road)" stroke-width="12"/><text x="-320" y="-312" fill="var(--faint)" font-size="11">Inner Ring Road</text>
+    <path d="M-320,-330 L-320,330" stroke="var(--road)" stroke-width="12"/><text x="-306" y="300" fill="var(--faint)" font-size="11">Hosur Road</text>
+    <path d="M-250,320 L260,-320" stroke="var(--road)" stroke-width="9"/><text x="120" y="-170" fill="var(--faint)" font-size="11" transform="rotate(-51 120 -170)">80 Feet Road</text>
+    <rect x="-60" y="-50" width="80" height="60" rx="6" fill="var(--park)"/><text x="-52" y="-24" fill="var(--faint)" font-size="11">5th Block</text>
+    <text x="150" y="245" fill="var(--faint)" font-size="12">HSR Layout</text>`,
+  hinj:`<path d="M300,-330 C280,-100 310,100 290,330" stroke="var(--road)" stroke-width="12" fill="none"/><text x="250" y="-300" fill="var(--faint)" font-size="11">Mumbai–Bengaluru Hwy</text>
+    <path d="M-330,40 C-100,20 120,10 330,170" stroke="var(--road)" stroke-width="10" fill="none"/><text x="-320" y="24" fill="var(--faint)" font-size="11">Hinjewadi–Maan Rd</text>
+    <path d="M60,-60 L200,-60 L220,90 L60,90 Z" fill="var(--park)"/><text x="78" y="-40" fill="var(--faint)" font-size="12">Phase 1</text>
+    <path d="M-130,-60 L20,-60 L20,90 L-130,90 Z" fill="var(--park)"/><text x="-115" y="-40" fill="var(--faint)" font-size="12">Phase 2</text>
+    <path d="M-300,-40 L-160,-40 L-160,110 L-300,110 Z" fill="var(--park)"/><text x="-285" y="-20" fill="var(--faint)" font-size="12">Phase 3</text>
+    <text x="215" y="190" fill="var(--faint)" font-size="12">Wakad</text>`
+};
+function mapHTML(){
+  if (!S.area) return `<p style="padding:24px 18px;color:var(--muted)">Search for a place to see the map.</p>`;
+  const list = visible(), a = S.anchor;
+  const pins = list.map(l => {
+    const x = l.x * 100, y = l.y * 100, txt = kfmt(l.beds ? Math.round(l.rent / l.beds) : l.rent), w = txt.length * 8 + 16;
+    return `<g class="pin" data-id="${l.id}" tabindex="0" role="button" aria-label="${esc(l.name)}, ${inr(l.rent)}"><rect x="${x - w/2}" y="${y - 26}" width="${w}" height="22" rx="11" fill="var(--surface)" stroke="var(--line)"/><text x="${x}" y="${y - 11}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--fg)" font-family="JetBrains Mono, monospace">${txt}</text><circle cx="${x}" cy="${y}" r="3" fill="var(--fg)"/></g>`;
+  }).join('');
+  const ax = a.x * 100, ay = a.y * 100;
+  return `<div class="mapwrap"><div class="p-sub" style="padding:0"><h2>${esc(AREAS[S.area].name)}, ${AREAS[S.area].city}<span>${list.length} places</span></h2></div>
+    <svg class="map" viewBox="-330 -330 660 660" role="img" aria-label="Map of places near ${esc(a.name)}">
+      ${MAPS[S.area]}
+      <circle cx="${ax}" cy="${ay}" r="100" fill="none" stroke="var(--accent)" stroke-opacity=".55" stroke-dasharray="4 6"/>
+      <circle cx="${ax}" cy="${ay}" r="200" fill="none" stroke="var(--accent)" stroke-opacity=".35" stroke-dasharray="4 6"/>
+      <text x="${ax + 72}" y="${ay - 72}" fill="var(--accent)" font-size="11">1 km</text>
+      <text x="${ax + 143}" y="${ay - 143}" fill="var(--accent)" font-size="11">2 km</text>
+      <g><circle cx="${ax}" cy="${ay}" r="11" fill="var(--accent)"/><path d="M${ax-5},${ay+1} L${ax},${ay-5} L${ax+5},${ay+1} V${ay+5} H${ax-5}Z" fill="var(--accent-ink)"/>
+      <text x="${ax}" y="${ay + 28}" text-anchor="middle" font-size="13" font-weight="600" fill="var(--fg)">${esc(a.name)}</text></g>
+      ${pins}
+    </svg>
+    <div class="legend"><span><i style="background:var(--accent)"></i>Your ${esc((a.label && a.label !== 'Area' ? a.label : 'search point').toLowerCase())}</span><span>Rings at 1 km and 2 km, straight-line</span><span>Tap a price to open the listing</span></div></div>`;
+}
+
+/* checklist */
+function checklistHTML(){
+  const done = Object.values(S.checks).filter(Boolean).length;
+  return `<div class="cl"><div class="cl-head"><div class="p-sub" style="padding:0"><h2>Move-in checklist<span>${done} of ${total} done</span></h2></div>
+    <div class="meter"><i style="width:${done / total * 100}%"></i></div>
+    <span style="color:var(--muted);font-size:13px">Items tick themselves as you search, book visits and finalise. You can tick the rest yourself.</span></div>
+    ${CHECK.map(g => `<div class="cl-group"><h3>${g.g}<span>${g.items.filter(i => S.checks[i[0]]).length}/${g.items.length}</span></h3>
+      ${g.items.map(([id, t, s]) => `<label class="cl-item ${S.checks[id] ? 'done' : ''}"><input type="checkbox" id="cl-${id}" data-check="${id}" ${S.checks[id] ? 'checked' : ''}><div><strong>${t}${S.autoChecks.has(id) ? '<span class="auto">· done by Roost</span>' : ''}</strong><span>${s}</span></div></label>`).join('')}</div>`).join('')}</div>`;
+}
+
+/* detail */
+function slots(){ return [['Sat','11:00 am'],['Sat','5:30 pm'],['Sun','10:30 am'],['Mon','7:00 pm']]; }
+function renderDetail(){
+  const l = byId(S.detail), c = commute(l), m = monthly(l), on = S.short.has(l.id);
+  const rows = [['Rent', m.rent], ['Maintenance', m.maint], ['Electricity', m.elec], ['Food', m.food], ['Wi-Fi', m.wifi]].filter(r => r[1] > 0);
+  const max = Math.max(...rows.map(r => r[1]));
+  const once = l.dep + (l.brok ? l.rent * l.brok : 0) + (l.fee || 0);
+  const booked = S.visits[l.id];
+  $('#pBody').innerHTML = `<div class="detail">
+    <button class="back" id="back"><svg class="ico" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>Back to ${S.tab === 'map' ? 'map' : 'places'}</button>
+    <div class="d-top">${art(l)}
+      <div class="d-info">
+        <span class="tag" style="align-self:flex-start">${l.kind} · ${esc(l.cfg)}</span>
+        <h2>${esc(l.name)}</h2>
+        <div class="loc">${esc(l.loc)} · Available ${l.avail}</div>
+        ${c ? `<div class="commute">${c.mode === 'walk' ? ICON.walk : ICON.auto}${c.mins} min ${c.mode === 'walk' ? 'walk' : 'by auto'} to ${esc(S.anchor.name)} · ${c.km.toFixed(1)} km</div>` : ''}
+        <div class="tags">${bachTag(l)}<span class="tag">${l.gender === 'Any' ? 'Anyone' : l.gender + ' only'}</span>${l.brok ? `<span class="tag warn">Brokerage ${l.brok} month</span>` : '<span class="tag">No brokerage</span>'}</div>
+        <div class="money" style="border:0;padding-top:4px"><span class="rent">${inr(l.rent)}<small>/mo</small></span><span class="dep">Deposit ${inr(l.dep)} (${(l.dep / l.rent).toFixed(l.dep % l.rent ? 1 : 0)}× rent)</span></div>
+        <div class="d-actions">
+          <button class="btn-accent" id="finalise">${S.final?.id === l.id ? 'Finalised' : 'Finalise this place'}</button>
+          <button class="ghost" data-heart="${l.id}">${on ? 'Shortlisted' : 'Shortlist'}</button>
+          <button class="ghost" id="askAbout">Ask about it</button>
+        </div>
+      </div>
+    </div>
+    <div class="two">
+      <div><p class="label">What you'll actually pay each month</p><div class="cost">${rows.map(([k, v]) => `<div class="cost-row"><span>${k}${k === 'Food' ? ' (est.)' : k === 'Electricity' ? ' (est.)' : ''}</span><span class="bar"><i style="width:${v / max * 100}%"></i></span><b>${inr(v)}</b></div>`).join('')}
+        <div class="cost-total"><span>Total${l.beds ? ', whole flat' : ''}</span><b>${inr(m.total)}</b></div>
+        ${l.beds ? `<div class="cost-row"><span>Your share (${l.beds})</span><span></span><b>${inr((m.total - m.food) / l.beds + m.food)}</b></div>` : ''}
+        <div class="cost-row"><span>To move in</span><span style="font-size:12px;color:var(--faint)">deposit${l.brok ? ' + brokerage' : ''}${l.fee ? ' + society fee' : ''}</span><b>${inr(once)}</b></div></div></div>
+      <div><p class="label">Why it could work</p><ul class="bul">${l.good.map(g => `<li>${esc(g)}</li>`).join('')}</ul>
+        ${l.warn.length ? `<p class="label" style="margin-top:16px">Check before you pay</p><ul class="bul w">${l.warn.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}</div>
+    </div>
+    <div class="two">
+      ${l.rules.length ? `<div><p class="label">House rules</p><ul class="bul n">${l.rules.map(r => `<li>${esc(r)}</li>`).join('')}</ul></div>` : ''}
+      ${l.mates ? `<div><p class="label">Your flatmates</p><div class="mates">${l.mates.map((m2, i) => `<span class="mate"><i style="--h:${(l.hue + 90 * (i + 1)) % 360}">${m2.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</i>${esc(m2)}</span>`).join('')}</div></div>` : ''}
+      <div><p class="label">Listed by</p><div>${esc(l.owner)}</div></div>
+    </div>
+    <div><p class="label">Book a visit</p><div class="slots">${slots().map(([d, t]) => { const k = d + ' ' + t; return `<button class="slot-btn" data-slot="${k}" aria-pressed="${booked === k}">${d}<span>${t}</span></button>`; }).join('')}</div></div>
+  </div>`;
+  $('#pBody').scrollTop = 0;
+}
+
+/* agreement */
+function agreementState(){
+  const l = S.final, a = S.agree;
+  return {owner:a.owner ?? l.owner, tenant:a.tenant ?? '', start:a.start ?? '2026-11-01', months:+(a.months ?? 11), rent:+(a.rent ?? (l.beds ? l.rent : l.rent)), dep:+(a.dep ?? l.dep), lock:+(a.lock ?? 3), notice:+(a.notice ?? 1), split:a.split ?? 'half'};
+}
+function fees(st){
+  const l = S.final, mh = AREAS[l.area].state === 'MH';
+  let stamp, reg;
+  if (mh){ stamp = Math.max(100, Math.ceil((0.0025 * (st.rent * st.months + st.dep * 0.10 * st.months / 12)) / 100) * 100); reg = 1000; }
+  else { stamp = Math.min(500, Math.ceil(0.01 * (st.rent * 12 + st.dep))); reg = 0; }
+  return {stamp, reg, svc:499, total:stamp + reg + 499, mh};
+}
+function agreementHTML(){
+  const l = S.final, st = agreementState(), f = fees(st);
+  const end = new Date(st.start); end.setMonth(end.getMonth() + st.months); end.setDate(end.getDate() - 1);
+  const dfmt = d => new Date(d).toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'});
+  const you = st.tenant || 'Your full name';
+  const yourPart = st.split === 'half' ? f.total / 2 : f.total;
+  return `<div class="ag">
+    <div class="ag-head"><h2>${f.mh ? 'Leave and licence agreement' : 'Rental agreement'}</h2><p>${esc(l.name)}, ${esc(l.loc)}. Pre-filled from the listing; edit anything that's wrong.</p></div>
+    <div class="steps"><span class="on">Details</span><span class="on">Costs</span><span class="${S.sent ? 'on' : ''}">Owner e-sign</span><span>${f.mh ? 'Registered' : 'Signed'}</span></div>
+    <div><p class="label">Details</p><div class="form">
+      <div class="field"><label for="ag-tenant">Your name (as on Aadhaar)</label><input id="ag-tenant" data-ag="tenant" value="${esc(st.tenant)}" placeholder="e.g. Rohan Sharma"></div>
+      <div class="field"><label for="ag-owner">Owner</label><input id="ag-owner" data-ag="owner" value="${esc(st.owner)}"></div>
+      <div class="field"><label for="ag-start">Start date</label><input id="ag-start" type="date" data-ag="start" value="${st.start}"></div>
+      <div class="field"><label for="ag-months">Period</label><select id="ag-months" data-ag="months">${[11, 6].map(n => `<option value="${n}"${st.months === n ? ' selected' : ''}>${n} months</option>`).join('')}</select></div>
+      <div class="field"><label for="ag-rent">Monthly rent (₹)</label><input id="ag-rent" type="number" inputmode="numeric" data-ag="rent" value="${st.rent}"></div>
+      <div class="field"><label for="ag-dep">Security deposit (₹)</label><input id="ag-dep" type="number" inputmode="numeric" data-ag="dep" value="${st.dep}"></div>
+      <div class="field"><label for="ag-lock">Lock-in</label><select id="ag-lock" data-ag="lock">${[0, 3, 6].map(n => `<option value="${n}"${st.lock === n ? ' selected' : ''}>${n ? n + ' months' : 'None'}</option>`).join('')}</select></div>
+      <div class="field"><label for="ag-notice">Notice period</label><select id="ag-notice" data-ag="notice">${[1, 2].map(n => `<option value="${n}"${st.notice === n ? ' selected' : ''}>${n} month${n > 1 ? 's' : ''}</option>`).join('')}</select></div>
+    </div></div>
+    <div><p class="label">Costs</p><div class="fees">
+      <div class="r"><span>Stamp duty ${f.mh ? '(0.25% of rent + notional interest on deposit)' : '(1% of annual rent + deposit, capped at ₹500)'}</span><b>${inr(f.stamp)}</b></div>
+      <div class="r"><span>Registration fee</span><b>${f.reg ? inr(f.reg) : 'Not required'}</b></div>
+      <div class="r"><span>Roost e-registration and doorstep biometrics</span><b>${inr(f.svc)}</b></div>
+      <div class="r t"><span>Total</span><b>${inr(f.total)}</b></div>
+      <div class="r"><span><label><input type="checkbox" id="ag-split" data-ag="split" ${st.split === 'half' ? 'checked' : ''}> Split 50/50 with the owner (common practice)</label></span><b>You pay ${inr(yourPart)}</b></div>
+      <small>Estimate. Confirm the final stamp duty with the sub-registrar's calculator before paying.</small>
+    </div></div>
+    <div><p class="label">Draft</p><div class="doc">
+      <h4>${f.mh ? 'Leave and Licence Agreement' : 'Rental Agreement'}</h4><p class="sub">${esc(l.loc)}, ${AREAS[l.area].city}</p>
+      <ol>
+        <li>This agreement is made between <mark data-bind="owner">${esc(st.owner)}</mark> (the ${f.mh ? 'Licensor' : 'Owner'}) and <mark data-bind="tenant">${esc(you)}</mark> (the ${f.mh ? 'Licensee' : 'Tenant'}).</li>
+        <li>The ${f.mh ? 'Licensor' : 'Owner'} allows the ${f.mh ? 'Licensee' : 'Tenant'} to use ${esc(l.cfg.toLowerCase())} at ${esc(l.loc)} for residential use only, from <mark>${dfmt(st.start)}</mark> to <mark>${dfmt(end)}</mark>.</li>
+        <li>The monthly ${f.mh ? 'licence fee' : 'rent'} is <mark>${inr(st.rent)}</mark>, payable by the 5th of each month by bank transfer or UPI.${l.maint ? ` Society maintenance of ${inr(l.maint)} is paid by the ${f.mh ? 'Licensee' : 'Tenant'}.` : ''}</li>
+        <li>An interest-free security deposit of <mark>${inr(st.dep)}</mark> is paid on signing and is refundable within 7 days of handing back the keys, less unpaid dues or damage beyond normal wear.</li>
+        <li>Neither party may end the agreement during the first <mark>${st.lock ? st.lock + ' months' : '0 months (no lock-in)'}</mark>. After that, either party may end it with <mark>${st.notice} month${st.notice > 1 ? 's' : ''}</mark>' written notice.</li>
+        <li>The ${f.mh ? 'Licensor' : 'Owner'} confirms the property may be let to bachelors and has informed the society.</li>
+        <li>An inventory of furniture and fittings, with photos, is attached as Annexure A.</li>
+      </ol></div></div>
+    <div class="d-actions"><button class="btn-accent" id="sendAgree" ${S.sent ? 'disabled' : ''}>${S.sent ? 'Sent to owner' : 'Send to owner for e-sign'}</button><button class="ghost" id="docsList">What documents do I need?</button></div>
+  </div>`;
+}
+
+/* ---------------- shortlist ---------------- */
+function toggleShort(id){
+  const l = byId(id);
+  if (S.short.has(id)){ S.short.delete(id); toast('Removed from shortlist'); } else { S.short.add(id); toast('Shortlisted ' + l.name); }
+  const c = $('#shortCount'); c.textContent = S.short.size; c.dataset.n = S.short.size;
+  renderPanel(); if (!$('#shortPop').hidden) renderShort();
+}
+function renderShort(){
+  const items = [...S.short].map(byId);
+  $('#shortPop').innerHTML = '<h4>Shortlist</h4>' + (items.length ? items.map(l => `<div class="line" data-goto="${l.id}">${art(l)}<div>${esc(l.name)}<span>${inr(l.rent)}/mo · ${esc(l.loc.split(',')[0])}</span></div></div>`).join('') : '<p class="empty">Tap the heart on a listing to save it here.</p>');
+}
+
+/* ---------------- finalise / visit ---------------- */
+async function finalise(l){
+  S.final = l; S.sent = false; S.agree = {};
+  const ticks = [];
+  if (l.dep / l.rent <= 3) ticks.push('deposit');
+  if (!l.brok) ticks.push('brokerage');
+  if (l.bach === 'verified') ticks.push('bach');
+  ticks.push('budget'); tick(ticks);
+  renderPanel();
+  if (innerWidth <= 860) closePanel();
+  S.busy = true;
+  addUser(`Let's go with ${l.name} in ${l.loc.split(',')[0]}`);
+  const el = addAI();
+  await think(el, ['Pulling the listing details', 'Preparing your agreement']);
+  const mh = AREAS[l.area].state === 'MH';
+  const warn = l.bach !== 'verified' ? `<p>One thing first: the society hasn't confirmed bachelors are allowed. Get that NOC in writing before you pay anything.</p>` : '';
+  el.innerHTML = `<div class="ai-text"><p>Good choice. Next step: <b>let's get your rent agreement sorted</b> before you pay the ${inr(l.dep)} deposit.</p>${warn}<p>${mh ? 'In Maharashtra a leave and licence agreement has to be registered. It can be done online with Aadhaar e-sign, and a biometric agent can come to the flat, so neither of you visits an office.' : 'In Karnataka an 11-month rental agreement only needs e-stamp paper. Registration is optional.'} I've drafted one from the listing. Add your name and check the dates.</p></div>` +
+    next([['Open the agreement', true], ['What should I check before paying?'], ['Split costs with flatmates']]);
+  S.busy = false; scrollDown();
+}
+async function bookVisit(l, slot){
+  S.visits[l.id] = slot; renderDetail();
+  if (innerWidth <= 860) closePanel();
+  S.busy = true;
+  addUser(`Book a visit to ${l.name}, ${slot}`);
+  const el = addAI();
+  await think(el, ['Messaging ' + l.owner]);
+  el.innerHTML = trace('Visit request sent') + `<div class="ai-text"><p>Visit requested with ${esc(l.owner)} for <b>${slot}</b>. I'll confirm when they reply.</p><p>On the visit, check the six items under <b>On the visit</b> in your checklist: water pressure, phone signal, damp, house rules, flatmates and the electricity meter.</p></div>` +
+    next([['Open my checklist', true], ['Show other places nearby']]);
+  S.busy = false; scrollDown();
+}
+
+/* ---------------- misc + wiring ---------------- */
+let tt;
+function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2200); }
+function autosize(){ const i = $('#input'); i.style.height = 'auto'; i.style.height = Math.min(i.scrollHeight, 160) + 'px'; }
+function syncSend(){ $('#send').classList.toggle('ready', !!$('#input').value.trim()); }
+function renderPlaces(){
+  $('#places').innerHTML = (S.places.length ? S.places.map(p => `<span class="place-chip">${ICON.pin}<em>${p.label}</em>${esc(p.name)}</span>`).join('') : '<span>No saved places yet</span>') +
+    `<button class="add-place" id="addPlace"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Save a place</button>`;
+}
+function fill(t){ $('#input').value = t; autosize(); syncSend(); $('#input').focus(); }
+
+const SUGGEST = [
+  ['Find a PG near IIT Bombay under ₹15k', 'Commute times, meals, curfews'],
+  ['My college is IIT Bombay, Powai 400076', 'Save your college once, use it everywhere'],
+  ['Shared flat in Koramangala, no brokerage', 'Meet the flatmates before you visit'],
+  ['My office address is near the big mall', 'See how Roost asks when an address is unclear']
+];
+$('#suggest').innerHTML = SUGGEST.map(([a, b]) => `<button data-say="${esc(a)}">${ICON.pin}<span><b>${esc(a)}</b>${esc(b)}</span></button>`).join('');
+renderPlaces(); syncProg();
+
+document.addEventListener('click', e => {
+  const say = e.target.closest('[data-say]');
+  if (say){
+    const t = say.dataset.say;
+    if (t === 'Open the agreement'){ S.tab = 'deal'; S.detail = null; openPanel(false); return; }
+    if (t === 'Open my checklist'){ S.tab = 'check'; S.detail = null; openPanel(false); return; }
+    if (t === 'Show them on a map'){ S.tab = 'map'; S.detail = null; openPanel(false); return; }
+    return send(t);
+  }
+  if (!e.target.closest('#shortPop') && !e.target.closest('#shortBtn')) $('#shortPop').hidden = true;
+});
+$('#places').addEventListener('click', e => { if (e.target.closest('#addPlace')) fill('My college is '); });
+$('#input').addEventListener('input', () => { autosize(); syncSend(); });
+$('#input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); send($('#input').value); } });
+$('#send').addEventListener('click', () => send($('#input').value));
+$('#attach').addEventListener('click', () => toast('Upload a screenshot of a listing from any site and Roost checks it for red flags'));
+$('#newChat').addEventListener('click', () => location.reload());
+$('#closePanel').addEventListener('click', closePanel);
+$('#expand').addEventListener('click', () => $('#app').classList.toggle('expanded'));
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (!b) return; S.tab = b.dataset.tab; S.detail = null; renderPanel(); });
+
+thread.addEventListener('click', e => {
+  const o = e.target.closest('[data-open]'); if (o){ S.tab = 'list'; S.detail = null; openPanel(false); return; }
+  const p = e.target.closest('[data-place]');
+  if (p){
+    const place = placeById(p.dataset.place);
+    p.closest('.options').querySelectorAll('button').forEach(b => b.disabled = true);
+    S.busy = true;
+    addUser(place.name + ', ' + place.sub);
+    const el = addAI();
+    think(el, ['Saving']).then(() => { savePlace(el, place, p.dataset.label, ['Confirmed by you', 'Pincode ' + place.pin], p.dataset.street); S.busy = false; scrollDown(); });
+  }
+});
+
+$('#pBody').addEventListener('click', e => {
+  const t = e.target;
+  const h = t.closest('[data-heart]'); if (h){ e.stopPropagation(); return toggleShort(h.dataset.heart); }
+  const f = t.closest('[data-f]'); if (f){ S.filter[f.dataset.f] = !S.filter[f.dataset.f]; return renderPanel(); }
+  if (t.closest('#back')){ S.detail = null; return renderPanel(); }
+  if (t.closest('#finalise')){ const l = byId(S.detail); if (S.final?.id !== l.id) finalise(l); return; }
+  if (t.closest('#askAbout')){ const l = byId(S.detail); if (innerWidth <= 860) closePanel(); return fill(`Is ${l.name} in ${l.loc.split(',')[0]} a good deal?`); }
+  const sl = t.closest('[data-slot]'); if (sl){ return bookVisit(byId(S.detail), sl.dataset.slot); }
+  if (t.closest('#sendAgree')){
+    const st = agreementState();
+    if (!st.tenant.trim()){ toast('Add your name as it appears on Aadhaar first'); $('#ag-tenant').focus(); return; }
+    S.sent = true; tick(['agreement', 'notice']); renderPanel();
+    if (innerWidth <= 860) closePanel();
+    S.busy = true; const el = addAI();
+    think(el, ['Sending to ' + st.owner]).then(() => {
+      el.innerHTML = trace('Agreement sent for e-sign') + `<div class="ai-text"><p>Sent to <b>${esc(st.owner)}</b> for Aadhaar e-sign. Once they sign, ${fees(st).mh ? 'the biometric agent books a slot to register it, usually within 2 days' : 'you both get a signed copy by email'}.</p><p>While you wait, here's what's left before move-in day.</p></div>` +
+        next([['Start police verification', true], ['Find movers for 1 Nov'], ['Split costs with flatmates'], ['Open my checklist']]);
+      S.busy = false; scrollDown();
+    });
+    return;
+  }
+  if (t.closest('#docsList')){ return toast('You: Aadhaar, PAN, 2 photos. Owner: Aadhaar, PAN, Index II or tax bill'); }
+  const pin = t.closest('.pin'); if (pin){ S.detail = pin.dataset.id; return renderPanel(); }
+  const card = t.closest('.card'); if (card){ S.detail = card.dataset.id; return renderPanel(); }
+});
+$('#pBody').addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'sort'){ S.sort = t.value; return renderPanel(); }
+  if (t.dataset.check){ S.checks[t.dataset.check] = t.checked; S.autoChecks.delete(t.dataset.check); saveChecks(); return renderPanel(); }
+  if (t.dataset.ag === 'tenant' || t.dataset.ag === 'owner') return;
+  if (t.dataset.ag){ S.agree[t.dataset.ag] = t.type === 'checkbox' ? (t.checked ? 'half' : 'full') : t.value; const y = $('#pBody').scrollTop; renderPanel(); $('#pBody').scrollTop = y; }
+});
+$('#pBody').addEventListener('input', e => {
+  const k = e.target.dataset.ag; if (k !== 'tenant' && k !== 'owner') return;
+  S.agree[k] = e.target.value;
+  const m = document.querySelector(`[data-bind="${k}"]`); if (m) m.textContent = e.target.value || (k === 'tenant' ? 'Your full name' : '');
+});
+$('#pBody').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const c = e.target.closest('.card, .pin'); if (c && c === e.target){ S.detail = c.dataset.id; renderPanel(); }
+});
+$('#shortBtn').addEventListener('click', () => { const p = $('#shortPop'); p.hidden = !p.hidden; if (!p.hidden) renderShort(); });
+$('#shortPop').addEventListener('click', e => { const g = e.target.closest('[data-goto]'); if (!g) return; const l = byId(g.dataset.goto); $('#shortPop').hidden = true; if (S.area !== l.area) return toast('Search ' + AREAS[l.area].name + ' to open this one'); S.detail = l.id; openPanel(false); });
+
+const handle = $('#handle');
+handle.addEventListener('pointerdown', e => {
+  handle.setPointerCapture(e.pointerId); $('#app').classList.add('dragging');
+  const move = ev => document.documentElement.style.setProperty('--pw', Math.max(380, Math.min(innerWidth - 380, innerWidth - ev.clientX)) + 'px');
+  const up = () => { $('#app').classList.remove('dragging'); handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); };
+  handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up);
+});
+handle.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const w = $('#panel').getBoundingClientRect().width + (e.key === 'ArrowLeft' ? 40 : -40);
+  document.documentElement.style.setProperty('--pw', Math.max(380, Math.min(innerWidth - 380, w)) + 'px');
+});
+</script>
+</body>
+</html>
